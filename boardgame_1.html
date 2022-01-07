@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas width="512" height="512"></canvas>    
+<p id="characterSheet" style="position: absolute; left: 800px; top: 0px;">Character Stats</p>
+    <p id="event" style="position: absolute; left: 800px; top: 25px">Events Here</p>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+<script>
+    //Webpage objects
+    var canvas = document.querySelector("canvas");
+    var context = canvas.getContext("2d");
+    var eventLog = document.getElementById("event");
+    var charLog = document.getElementById("characterSheet");
+    //images
+    var map;
+    var lucianIcon;
+    var threshIcon;
+    var minionIcon;
+    var poroIcon;
+    var nexusIcon;
+	//player and npc objects
+    var board;
+    var Lucian;
+    var Minion;
+    var Thresh;
+    var Target;
+	//Timers and log triggers
+    var turns = 0;
+    var battleStart = true;
+    var townEnter = true;
+    var playGame = true;
+
+//Initializing player object
+function Player()
+{
+	this.health = 554;
+    this.gold = 500;
+    this.poros = 6;
+    this.damage = 65;
+    this.xPos = 0;
+    this.yPos = 7;
+}
+
+//Enemy object
+function Enemy(x, y)
+{
+	this.health = 455;
+	this.gold = 20;
+	this.damage = 15;
+	this.poros = 2;
+	this.xPos = x;
+	this.yPos = y;
+}
+
+//Thresh object
+function badThresh()
+{
+    this.health = 560;
+    this.gold = 400;
+    this.poros = 6;
+    this.damage = 56;
+    this.armour = 28;
+    this.xPos = 0;
+    this.yPos = 0;
+
+    this.setXY = function(x, y)
+	{
+        this.xPos = x;
+        this.yPos = y;
+    }
+}
+	
+function initialize() 
+{
+	//Set up for player, minions, and Thresh
+	Lucian = new Player();
+	Minion = new Array(3);
+	Thresh = new badThresh();
+
+	//Creation of board
+	board = new Array(8);
+	for (var x = 0; x < 8; x++) 
+	{
+		board[x] = new Array(8);
+		for (var y = 0; y < 8; y++) 
+		{
+			board[x][y] = new cell(0, false);
+		}
+	}
+	
+	board[7][0] = new cell(5,false); //Setting nexus location on grid
+	board[0][7] = new cell(1,false);// Setting player location on grid
+	
+	for (var placeEnemy = 0; placeEnemy < 6; placeEnemy++)
+	{
+        var tempX = Math.floor(Math.random() * 8);
+        var tempY = Math.floor(Math.random() * 8);
+
+        //if board location is empty(0) generate new enemy in location, else run loop one extra time 
+        if (board[tempX][tempY].eventNum == 0)
+		{
+            //generate position for three basics enemies, then create Thresh
+            if (placeEnemy < 5)
+			{
+
+                board[tempX][tempY] = new cell(3, true);
+                board[tempX][tempY].gold += 2;
+                board[tempX][tempY].poros += 2;
+                Minion[placeEnemy] = new Enemy(tempX, tempY);
+            }
+				
+			else
+			{
+                board[tempX][tempY] = new cell(6, false);
+                Thresh.setXY(tempX, tempY);
+            }
+        }
+		
+		else
+		{
+            placeEnemy--;
+        }
+    }
+	
+	for (var placeEvent = 0; placeEvent < 5; placeEvent++)
+	{
+        var tempX = Math.floor(Math.random() * 8);
+        var tempY = Math.floor(Math.random() * 8);
+
+        //if board location is empty(0) generate new event in location, else run loop one extra time 
+        if (board[tempX][tempY].eventNum == 0)
+		{
+            //generate position for events at random
+            board[tempX][tempY] = new cell(2, true);
+            board[tempX][tempY].gold += 2;
+            board[tempX][tempY].poros += 2;
+        }
+		
+		else
+		{
+            placeEvent--;
+        }
+    }
+	
+}
+
+function cell(eventNum, hasStats) 
+{
+	this.eventNum = eventNum;
+	this.damage = 0;
+	this.gold = 0;
+	this.poros = 0;
+	var bonusSelector = Math.floor(Math.random() * 4);
+	if (hasStats) 
+	{
+		if (bonusSelector == 0)
+		this.damage = Math.floor(Math.random() * 2) + 1;
+		if (bonusSelector == 2)
+		this.gold = Math.floor(Math.random() * 10) + 5;
+		if (bonusSelector == 3)
+		this.poros = Math.floor(Math.random() * 2) + 1;
+	}
+}
+
+$(document).ready(function() 
+{
+	var curGame = new initialize();
+	window.addEventListener("keydown", keydownHandler, false);
+
+	//load character icon for game
+	lucianIcon = new Image();
+	lucianIcon.src = "NoWife.png";
+	//load game board background
+    map = new Image();
+    map.src = "Ground.jpg";
+    //load Thresh icon for game
+    threshIcon = new Image();
+    threshIcon.src = "Thresh.png";
+    //load goomba icon for game
+    minionIcon = new Image();
+    minionIcon.src = "Minion.png";
+    //load event icon for game
+    poroIcon = new Image();
+    poroIcon.src = "Poro.png";
+    //load castle icon for game
+    nexusIcon = new Image();
+    nexusIcon.src = "Bnexus.png";
+	
+	charLog.innerHTML = "Hp: " + Lucian.health + " gold: " + Lucian.gold + " poros: " + Lucian.poros + " Attack: " + Lucian.damage;
+	lucianIcon.addEventListener("load", render, false);
+})
+
+function render() 
+{
+	context.drawImage(map, 0, 0, 512, 512, 0, 0, canvas.width, canvas.height);
+	
+	context.drawImage(lucianIcon, 0, 0, lucianIcon.width, lucianIcon.height, Lucian.xPos * 64, Lucian.yPos * 64, lucianIcon.width, lucianIcon.height);
+	
+	if (Thresh.health > 0) //If Thresh is alive, draw Thresh
+    {
+		context.drawImage(threshIcon, 0, 0, threshIcon.width, threshIcon.height, Thresh.xPos * 64, Thresh.yPos * 64, threshIcon.width, threshIcon.height);
+    }
+	
+	for (var x = 0; x < 8; x++)
+	{
+        for (var y = 0; y < 8; y++)
+		{
+            if (board[x][y].eventNum == 2)
+			{
+                context.drawImage(poroIcon, 0, 0, poroIcon.width, poroIcon.height, x * 64, y * 64, 64, 64);
+            }
+            if (board[x][y].eventNum == 3)
+			{
+                context.drawImage(minionIcon, 0, 0, minionIcon.width, minionIcon.height, x * 64, y * 64, 64, 64);
+            }
+            if (board[x][y].eventNum == 5)
+			{
+                context.drawImage(nexusIcon, 0, 0, nexusIcon.width, nexusIcon.height, x * 64, y * 64, 64, 64);
+            }
+        }
+    }
+}
+function keydownHandler(event) {
+            /*
+            Right arrow - 39
+            Up arrow - 40
+            Left Arrow - 37
+            Down Arrow - 38
+            0 key - 96
+            */
+			
+            turns++;
+            if (playGame) {
+                if (event.keyCode == 39 && Lucian.xPos != 7) //If player wants to move right and can move right
+                {
+                    Lucian.xPos += 1;
+                    Lucian.poros--;
+                    battleStart = true;
+                }
+                if (event.keyCode == 37 && Lucian.xPos != 0) //If player wants to move left and can move left
+                {	
+                    Lucian.xPos -= 1;
+                    Lucian.poros--;
+                    battleStart = true;
+                }
+                if (event.keyCode == 40 && Lucian.yPos != 7) //If player wants to move up and can move up
+                {
+                    Lucian.yPos += 1;
+                    Lucian.poros--;
+                    battleStart = true;
+                }
+                if (event.keyCode == 38 && Lucian.yPos != 0) //If player wants to move down and can move down
+                {
+                    Lucian.yPos -= 1;
+                    Lucian.poros--;
+                    battleStart = true;
+                }
+                if (event.keyCode == 96 && Lucian.health < 10) //player can consume poros by pressing 0 without moving to heal 1 hitpoint
+                {
+					
+                    Lucian.poros--;
+                    Lucian.health++;
+                }
+                else if (board[Lucian.xPos][Lucian.yPos].eventNum == 3) //If player encounters an enemy
+                {
+                fight(event);
+                } else if (board[Lucian.xPos][Lucian.yPos].eventNum == 6) //If player fights the thresh
+                {
+                    fight(event);
+                } else //If player does not enter combat this turn, the thresh moves and the player might find an item
+                {
+                    threshAction();
+                    blockCheck();
+                }				
+				//After game updates values, evaluate win/lose conditions and set playGame to false if game is over
+                if (Lucian.health < 0 || Lucian.poros < 0) {
+                    if (Lucian.health < 0) {
+                        eventLog.innerHTML = "You have been defeated. Game Over";
+                    }
+                    if (Lucian.poros < 0) {
+                        eventLog.innerHTML = "You are too weak to carry on. Game Over";
+                    }
+                    playGame = false;
+                }
+                if (board[Lucian.xPos][Lucian.yPos].eventNum == 5) {
+                    eventLog.innerHTML = "Victory! You Defeated level 1 Thresh!";
+                    var score = Lucian.gold + Lucian.damage + Lucian.poros;
+                    eventLog.innerHTML += "Your scored " + score;
+                    playGame = false;
+                }
+			}
+	
+			render();
+		}
+		
+function threshAction() {
+//Every x turns the Thresh moves one square
+    if (turns % 1 == 0) {
+        var threshDirect = Math.floor(Math.random() * 4);
+        board[Thresh.xPos][Thresh.yPos].eventNum = 0;
+    if (threshDirect == 0 && Thresh.xPos != 7) //if Thresh wants to move right and can move right
+    {
+        Thresh.xPos += 1;
+        if (board[Thresh.xPos][Thresh.yPos].eventNum != 0) //if space has an event, undo action and call function again
+        {
+            Thresh.xPos -= 1;
+            threshAction();
+        }
+    } else if (threshDirect == 0 && Thresh.xPos == 7) //if Thresh wants to move right and can't move right, call function again
+    {
+        threshAction();
+    } 
+	else if (threshDirect == 1 && Thresh.xPos != 0) //if Thresh wants to move left and can move left
+    {
+		Thresh.xPos -= 1;
+    if (board[Thresh.xPos][Thresh.yPos].eventNum != 0) //if space has an event, undo action and call function again
+    {
+        Thresh.xPos += 1;
+        threshAction();
+    }
+    } 
+	else if (threshDirect == 1 && Thresh.xPos == 0) //if Thresh wants to move left and can't move left, call function again
+    {
+        threshAction();
+    } 
+	else if (threshDirect == 2 && Thresh.yPos != 7) //if Thresh wants to move up and can move up
+    {
+        Thresh.yPos += 1;
+    if (board[Thresh.xPos][Thresh.yPos].eventNum != 0) //if space has an event, undo action and call function again
+    {
+        Thresh.yPos -= 1;
+        threshAction();
+    }
+    } 
+	else if (threshDirect == 2 && Thresh.yPos == 7) //if Thresh wants to move up and can't move up, call function again
+    {
+        threshAction();
+    } 
+	else if (threshDirect == 3 && Thresh.yPos != 0) //if Thresh wants to move down and can move down
+    {
+        Thresh.yPos -= 1;
+        if (board[Thresh.xPos][Thresh.yPos].eventNum != 0) //if space has an event, undo action and call function again
+        {
+            Thresh.yPos += 1;
+            threshAction();
+        } 
+		else if (threshDirect == 3 && Thresh.yPos == 0) //if Thresh wants to move down and can't move down, call function again
+        {
+            threshAction();
+        }
+        board[Thresh.xPos][Thresh.yPos].eventNum = 6;
+        }
+
+    }
+}	
+	//Checks for unique interactions on squares player visits
+    function blockCheck() 
+	{
+		if (board[Lucian.xPos][Lucian.yPos].eventNum == 2) //check event space for bonuses
+		{
+			if(board[Lucian.xPos][Lucian.yPos].gold != 0) 
+			{
+				Lucian.gold += board[Lucian.xPos][Lucian.yPos].gold;
+				board[Lucian.xPos][Lucian.yPos].gold = 0;
+				eventLog.innerHTML = "Found gold!";
+			}
+			if(board[Lucian.xPos][Lucian.yPos].poros != 0) 
+			{
+				Lucian.poros += board[Lucian.xPos][Lucian.yPos].poros;
+				board[Lucian.xPos][Lucian.yPos].poros = 0;
+				eventLog.innerHTML = "Found poro!";
+			}
+			
+        }
+		charLog.innerHTML = "Hp: " + Lucian.health + " Gold: " + Lucian.gold + " poros: " + Lucian.poros + " Attack: " + Lucian.damage; //update character stats
+	}
+	
+	function fight(event) //Battling basic enemies
+	{
+        if (battleStart == true) //On battle initiation
+        {
+            eventLog.innerHTML = "You encountered a Minion!<br> Z to Piercing Light<br>";
+            for (var find = 0; find < Minion.length; find++) 
+			{
+                if (Minion[find].xPos == Lucian.xPos && Minion[find].yPos == Lucian.yPos) 
+				{
+					Target = Minion[find];
+                }
+            }
+            battleStart = false;
+        }
+
+        if (event.keyCode == 90) //Attack with sword, boost damage
+        {
+            //eventLog.innerHTML += "You Swing your sword with full force! <br>";
+            Target.health -= Math.max(((2 + Lucian.damage)), 0);
+            Lucian.health -= Math.max((Target.damage), 0);
+        }
+
+        if (Target.health <= 0) //when Minion is defeated, gain rewards
+        {
+            eventLog.innerHTML += "Minion is no more! <br>";
+            board[Target.xPos][Target.yPos].eventNum = 0;
+            Lucian.gold += Target.gold + board[Lucian.xPos][Lucian.yPos].gold;
+            Lucian.poros += Target.poros + board[Lucian.xPos][Lucian.yPos].poros;
+            battleStart = true;
+        }
+            charLog.innerHTML = "Hp: " + Lucian.health + " Gold: " + Lucian.gold + " Gold: " + Lucian.poros;
+			        function fight(event) //battling the thresh
+        {
+            if (battleStart == true) //On battle initiation
+            {
+                eventLog.innerHTML = "Thresh appears! You probably won't survive<br> Z to stomp<br>";
+                Target = Thresh;
+                battleStart = false;
+            }
+
+            if (event.keyCode == 90) //Attack with sword, boost damage
+            {
+                eventLog.innerHTML += "BOING! <br>";
+                Thresh.health -= Math.max(((1 + Lucian.damage)), 0);
+                Lucian.health -= Math.max((Target.damage), 0);
+            }
+
+            if (Thresh.health <= 0) //when Thresh is defeated, gain rewards
+            {
+                eventLog.innerHTML += "Thresh is no more! Huge bonus to stats! <br>";
+                board[Lucian.xPos][Lucian.yPos].eventNum = 0;
+                eventLog.innerHTML += ("Found gold +" + Thresh.gold + "<br>");
+                eventLog.innerHTML += ("Found Poros +" + Thresh.poros + "<br>");
+                eventLog.innerHTML += ("Gained damage +" + Thresh.damage + "<br>");
+                Lucian.gold += Thresh.gold;
+                Lucian.poros += Thresh.poros;
+                Lucian.damage += Thresh.damage;
+                battleStart = true;
+            }
+            charLog.innerHTML = "Hp: " + Lucian.health + " Gold: " + Lucian.gold + " Gold " + Lucian.mushrooms + " Attack: " + Lucian.damage;
+        }
+    }
+		
+</script>
+</body>
+</html>
